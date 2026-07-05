@@ -19,8 +19,9 @@ RUN useradd -m -s /bin/bash ${VNC_USER} \
 USER ${VNC_USER}
 WORKDIR /home/${VNC_USER}
 
+# PERBAIKAN PASSWORD: echo -n dan tanda kutip ganda untuk mencegah spasi/enter tersembunyi
 RUN mkdir -p /home/${VNC_USER}/.vnc \
-    && echo ${VNC_PASS} | vncpasswd -f > /home/${VNC_USER}/.vnc/passwd \
+    && echo -n "${VNC_PASS}" | vncpasswd -f > /home/${VNC_USER}/.vnc/passwd \
     && chmod 600 /home/${VNC_USER}/.vnc/passwd
 
 # REVISI UTAMA: Menggunakan 'exec' dan menonaktifkan session bawaan
