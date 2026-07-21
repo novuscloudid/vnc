@@ -4,7 +4,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV VNC_PASS="admin123"
 ENV VNC_USER="developer" 
 
-# Instalasi paket sistem, XFCE4, Node.js, dan tools pendukung (tanpa novnc bawaan apt)
+# Instalasi paket sistem, XFCE4, Node.js, dan tools pendukung
 RUN apt-get update && apt-get install -y \
     sudo \
     xfce4 xfce4-terminal dbus-x11 \
@@ -16,10 +16,10 @@ RUN apt-get update && apt-get install -y \
     && apt-get install -y nodejs \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Download noVNC resmi langsung dari GitHub untuk menghindari bug DOM UI bawaan Debian
+# Download noVNC resmi dan arahkan index.html ke vnc_lite.html agar bebas dari error UIJS
 RUN mkdir -p /usr/share/novnc \
     && curl -sL https://github.com/novnc/noVNC/archive/refs/tags/v1.4.0.tar.gz | tar -xz -C /usr/share/novnc --strip-components=1 \
-    && ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html
+    && ln -s /usr/share/novnc/vnc_lite.html /usr/share/novnc/index.html
 
 # Membuat user, memberikan akses sudo penuh, dan set password sistem
 RUN useradd -m -s /bin/bash ${VNC_USER} \
