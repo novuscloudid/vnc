@@ -4,14 +4,13 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV VNC_PASS="admin123"
 ENV VNC_USER="developer" 
 
-# Instalasi dependensi sistem, XFCE4, Node.js/npm, dan tools pendukung agar user bisa menginstal apa saja tanpa hambatan
+# Menghapus software-properties-common yang error di Debian Trixie
 RUN apt-get update && apt-get install -y \
     sudo \
     xfce4 xfce4-terminal dbus-x11 \
     tigervnc-standalone-server \
     novnc websockify \
     curl wget git build-essential \
-    software-properties-common \
     gnupg \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs \
