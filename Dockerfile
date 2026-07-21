@@ -1,68 +1,44 @@
-FROM python:3.11-slim
+FROM ubuntu:22.04
 
+# Hindari interaktif prompt saat instalasi
 ENV DEBIAN_FRONTEND=noninteractive
-ENV VNC_PASS="12345"
-ENV VNC_USER="developer" 
 
-# Instalasi sistem, XFCE4, Node.js, dan tools pendukung dengan akses bebas penuh
+# Update dan install dependencies (XFCE4 desktop, TightVNC, noVNC, websockify, dan utilitas pendukung)
 RUN apt-get update && apt-get install -y \
-    sudo \
-    xfce4 xfce4-terminal dbus-x11 \
-    tigervnc-standalone-server \
+    wget \
+    curl \
+    git \
+    xfce4 \
+    xfce4-goodies \
+    tightvncserver \
+    novnc \
     websockify \
-    curl wget git build-essential \
-    gnupg \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    dbus-x11 \
+    supervisor \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Download noVNC resmi dan gunakan vnc_lite.html
-RUN mkdir -p /usr/share/novnc \
-    && curl -sL https://github.com/novnc/noVNC/archive/refs/tags/v1.4.0.tar.gz | tar -xz -C /usr/share/novnc --strip-components=1 \
-    && ln -s /usr/share/novnc/vnc_lite.html /usr/share/novnc/index.html
+# Buat direktori kerja
+WORKDIR /app
 
-# Membuat user, akses sudo penuh tanpa sandi, serta menyelaraskan password sistem & VNC menjadi "12345"
-RUN useradd -m -s /bin/bash ${VNC_USER} \
-    && echo "${VNC_USER} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers \
-    && echo "${VNC_USER}:${VNC_PASS}" | chpasswd
+# Konfigurasi VNC Password dan Resolusi Default
+ENV USER=root
+ENV PASSWORD=passwordku
+ENV RESOLUTION=1280x720
 
-USER ${VNC_USER}
-WORKDIR /home/${VNC_USER}
+RUN mkdir -p ~/.vnc \
+    && echo "$PASSWORD" | vncpasswd -f > ~/.vnc/passwd \
+    && chmod 600 ~/.vnc/passwd
 
-# Konfigurasi xstartup, mematikan screensaver & dpms total agar tidak pernah lockscreen
-RUN mkdir -p /home/${VNC_USER}/.vnc \
-    && echo '#!/bin/bash\n\
-unset SESSION_MANAGER\n\
-unset DBUS_SESSION_BUS_ADDRESS\n\
-xset s off\n\
-xset -dpms\n\
-xset s noblank\n\
-exec startxfce4\n\
-' > /home/${VNC_USER}/.vnc/xstartup && chmod +x /home/${VNC_USER}/.vnc/xstartup
+# Buat script startup untuk menjalankan VNC server dan noVNC
+RUN echo '#!/bin/bash\n' \
+    'rm -rf /tmp/.X*-lock /tmp/.X11-unix/*\n' \
+    'vncserver :1 -geometry $RESOLUTION -depth 24\n' \
+    'websockify --web=/usr/share/novnc/ 6901 localhost:5901' > /app/start.sh \
+    && chmod +x /app/start.sh
 
-# Membuat direktori token untuk mapping port aman websockify
-RUN mkdir -p /home/${VNC_USER}/novnc_tokens \
-    && echo "aps: localhost:5901" > /home/${VNC_USER}/novnc_tokens/vnc
+# Port web noVNC (sesuaikan dengan port bawaan platform cloud, misal 6901 atau 7860)
+EXPOSE 6901
 
-# Script inisialisasi dinamis yang membaca port Railway secara mutlak
-RUN echo '#!/bin/bash\n\
-# Menggunakan port dinamis yang diberikan oleh Railway secara mutlak\n\
-TARGET_PORT="${PORT:-8080}"\n\
-\n\
-mkdir -p /home/developer/.vnc\n\
-echo -n "${VNC_PASS}" | vncpasswd -f > /home/developer/.vnc/passwd\n\
-chmod 600 /home/developer/.vnc/passwd\n\
-\n\
-vncserver -kill :1 >/dev/null 2>&1 || true\n\
-sudo rm -rf /tmp/.X* /tmp/.X11-unix\n\
-sudo mkdir -p /tmp/.X11-unix\n\
-sudo chmod 1777 /tmp/.X11-unix\n\
-\n\
-vncserver :1 -geometry 1280x720 -depth 24 -localhost no\n\
-sleep 2\n\
-\n\
-echo "Starting websockify on dynamic port ${TARGET_PORT} with token routing..."\n\
-exec websockify --web=/usr/share/novnc/ --target-config=/home/developer/novnc_tokens/ 0.0.0.0:${TARGET_PORT}\n\
-' > /home/${VNC_USER}/start.sh && chmod +x /home/${VNC_USER}/start.sh
-
-CMD ["/home/developer/start.sh"]
+# Jalankan script utama
+CMD ["/app/start.sh"]
