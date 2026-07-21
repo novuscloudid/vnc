@@ -13,21 +13,26 @@ RUN apt-get update && apt-get install -y \
     curl wget git \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# PERBAIKAN: Menambahkan set password sistem (chpasswd) agar lock screen mengenali password
 RUN useradd -m -s /bin/bash ${VNC_USER} \
-    && echo "${VNC_USER} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+    && echo "${VNC_USER} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers \
+    && echo "${VNC_USER}:${VNC_PASS}" | chpasswd
 
 USER ${VNC_USER}
 WORKDIR /home/${VNC_USER}
 
-# PERBAIKAN PASSWORD: echo -n dan tanda kutip ganda untuk mencegah spasi/enter tersembunyi
+# PERBAIKAN PASSWORD VNC: echo -n dan tanda kutip ganda untuk mencegah spasi/enter tersembunyi
 RUN mkdir -p /home/${VNC_USER}/.vnc \
     && echo -n "${VNC_PASS}" | vncpasswd -f > /home/${VNC_USER}/.vnc/passwd \
     && chmod 600 /home/${VNC_USER}/.vnc/passwd
 
-# REVISI UTAMA: Menggunakan 'exec' dan menonaktifkan session bawaan
+# REVISI UTAMA: Menggunakan 'exec', menonaktifkan session, dan mematikan screensaver agar tidak terkunci
 RUN echo '#!/bin/bash\n\
 unset SESSION_MANAGER\n\
 unset DBUS_SESSION_BUS_ADDRESS\n\
+xset s off\n\
+xset -dpms\n\
+xset s noblank\n\
 exec startxfce4\n\
 ' > /home/${VNC_USER}/.vnc/xstartup && chmod +x /home/${VNC_USER}/.vnc/xstartup
 
