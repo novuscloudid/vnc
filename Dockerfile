@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y \
     && apt-get install -y nodejs \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Download noVNC resmi dan gunakan vnc_lite.html untuk bypass error UIJS
+# Download noVNC resmi dan gunakan vnc_lite.html
 RUN mkdir -p /usr/share/novnc \
     && curl -sL https://github.com/novnc/noVNC/archive/refs/tags/v1.4.0.tar.gz | tar -xz -C /usr/share/novnc --strip-components=1 \
     && ln -s /usr/share/novnc/vnc_lite.html /usr/share/novnc/index.html
@@ -40,19 +40,24 @@ xset s noblank\n\
 exec startxfce4\n\
 ' > /home/${VNC_USER}/.vnc/xstartup && chmod +x /home/${VNC_USER}/.vnc/xstartup
 
-# Script inisialisasi password, pembersihan lock, dan menjalankan VNC/noVNC menggunakan exec websockify
+# Script inisialisasi password, pembersihan lock, dan menjalankan VNC/noVNC
 RUN echo '#!/bin/bash\n\
-PORT="${PORT:-8080}"\n\
+SERVER_PORT="${PORT:-8080}"\n\
+\n\
 mkdir -p /home/developer/.vnc\n\
 echo -n "${VNC_PASS}" | vncpasswd -f > /home/developer/.vnc/passwd\n\
 chmod 600 /home/developer/.vnc/passwd\n\
+\n\
 vncserver -kill :1 >/dev/null 2>&1 || true\n\
 sudo rm -rf /tmp/.X* /tmp/.X11-unix\n\
 sudo mkdir -p /tmp/.X11-unix\n\
 sudo chmod 1777 /tmp/.X11-unix\n\
+\n\
 vncserver :1 -geometry 1280x720 -depth 24 -localhost no\n\
 sleep 2\n\
-exec websockify --web=/usr/share/novnc/ 0.0.0.0:${PORT} localhost:5901\n\
+\n\
+echo "Starting websockify on port ${SERVER_PORT}..."\n\
+exec websockify --web=/usr/share/novnc/ 0.0.0.0:${SERVER_PORT} localhost:5901\n\
 ' > /home/${VNC_USER}/start.sh && chmod +x /home/${VNC_USER}/start.sh
 
 CMD ["/home/developer/start.sh"]
