@@ -1,10 +1,10 @@
 FROM python:3.11-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV VNC_PASS="admin123"
+ENV VNC_PASS="12345"
 ENV VNC_USER="developer" 
 
-# Instalasi paket sistem, XFCE4, Node.js, dan tools pendukung
+# Instalasi sistem, XFCE4, Node.js, dan tools pendukung dengan akses bebas penuh
 RUN apt-get update && apt-get install -y \
     sudo \
     xfce4 xfce4-terminal dbus-x11 \
@@ -16,12 +16,12 @@ RUN apt-get update && apt-get install -y \
     && apt-get install -y nodejs \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Download noVNC resmi dan arahkan index.html ke vnc_lite.html agar bebas dari error UIJS
+# Download noVNC resmi dan gunakan vnc_lite.html untuk bypass error UIJS
 RUN mkdir -p /usr/share/novnc \
     && curl -sL https://github.com/novnc/noVNC/archive/refs/tags/v1.4.0.tar.gz | tar -xz -C /usr/share/novnc --strip-components=1 \
     && ln -s /usr/share/novnc/vnc_lite.html /usr/share/novnc/index.html
 
-# Membuat user, memberikan akses sudo penuh, dan set password sistem
+# Membuat user, akses sudo penuh tanpa sandi, serta menyelaraskan password sistem & VNC menjadi "12345"
 RUN useradd -m -s /bin/bash ${VNC_USER} \
     && echo "${VNC_USER} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers \
     && echo "${VNC_USER}:${VNC_PASS}" | chpasswd
@@ -29,7 +29,7 @@ RUN useradd -m -s /bin/bash ${VNC_USER} \
 USER ${VNC_USER}
 WORKDIR /home/${VNC_USER}
 
-# Konfigurasi xstartup dan mematikan screensaver agar layar tidak terkunci otomatis
+# Konfigurasi xstartup, mematikan screensaver & dpms total agar tidak pernah lockscreen
 RUN mkdir -p /home/${VNC_USER}/.vnc \
     && echo '#!/bin/bash\n\
 unset SESSION_MANAGER\n\
@@ -40,7 +40,7 @@ xset s noblank\n\
 exec startxfce4\n\
 ' > /home/${VNC_USER}/.vnc/xstartup && chmod +x /home/${VNC_USER}/.vnc/xstartup
 
-# Script untuk generate password VNC, membersihkan lock, dan menjalankan server
+# Script inisialisasi password, pembersihan lock, dan menjalankan VNC/noVNC
 RUN echo '#!/bin/bash\n\
 export PORT=${PORT:-8080}\n\
 mkdir -p /home/developer/.vnc\n\
