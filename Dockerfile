@@ -1,19 +1,23 @@
-FROM ubuntu:22.04
+FROM python:3.11-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV VNC_PASS="admin123"
 ENV VNC_USER="developer" 
 
-# Tambahan dbus-x11 agar XFCE4 berjalan stabil di container
+# Instalasi dependensi sistem, XFCE4, Node.js/npm, dan tools pendukung agar user bisa menginstal apa saja tanpa hambatan
 RUN apt-get update && apt-get install -y \
     sudo \
     xfce4 xfce4-terminal dbus-x11 \
     tigervnc-standalone-server \
     novnc websockify \
-    curl wget git \
+    curl wget git build-essential \
+    software-properties-common \
+    gnupg \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# PERBAIKAN: Menambahkan set password sistem (chpasswd) agar lock screen mengenali password
+# Membuat user, memberikan akses sudo penuh tanpa password, dan set password sistem
 RUN useradd -m -s /bin/bash ${VNC_USER} \
     && echo "${VNC_USER} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers \
     && echo "${VNC_USER}:${VNC_PASS}" | chpasswd
@@ -21,12 +25,12 @@ RUN useradd -m -s /bin/bash ${VNC_USER} \
 USER ${VNC_USER}
 WORKDIR /home/${VNC_USER}
 
-# PERBAIKAN PASSWORD VNC: echo -n dan tanda kutip ganda untuk mencegah spasi/enter tersembunyi
+# Konfigurasi password VNC
 RUN mkdir -p /home/${VNC_USER}/.vnc \
     && echo -n "${VNC_PASS}" | vncpasswd -f > /home/${VNC_USER}/.vnc/passwd \
     && chmod 600 /home/${VNC_USER}/.vnc/passwd
 
-# REVISI UTAMA: Menggunakan 'exec', menonaktifkan session, dan mematikan screensaver agar tidak terkunci
+# Konfigurasi xstartup dan mematikan screensaver agar layar tidak terkunci otomatis
 RUN echo '#!/bin/bash\n\
 unset SESSION_MANAGER\n\
 unset DBUS_SESSION_BUS_ADDRESS\n\
@@ -36,6 +40,7 @@ xset s noblank\n\
 exec startxfce4\n\
 ' > /home/${VNC_USER}/.vnc/xstartup && chmod +x /home/${VNC_USER}/.vnc/xstartup
 
+# Script untuk menjalankan VNC, noVNC, dan websockify
 RUN echo '#!/bin/bash\n\
 export PORT=${PORT:-8080}\n\
 vncserver -kill :1 >/dev/null 2>&1 || true\n\
