@@ -4,7 +4,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV VNC_PASS="admin123"
 ENV VNC_USER="developer" 
 
-# Menghapus software-properties-common yang error di Debian Trixie
+# Instalasi paket sistem, XFCE4, Node.js, dan tools pendukung
 RUN apt-get update && apt-get install -y \
     sudo \
     xfce4 xfce4-terminal dbus-x11 \
@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y \
     && apt-get install -y nodejs \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Membuat user, memberikan akses sudo penuh tanpa password, dan set password sistem
+# Membuat user, memberikan akses sudo penuh, dan set password sistem
 RUN useradd -m -s /bin/bash ${VNC_USER} \
     && echo "${VNC_USER} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers \
     && echo "${VNC_USER}:${VNC_PASS}" | chpasswd
@@ -24,13 +24,9 @@ RUN useradd -m -s /bin/bash ${VNC_USER} \
 USER ${VNC_USER}
 WORKDIR /home/${VNC_USER}
 
-# Konfigurasi password VNC
-RUN mkdir -p /home/${VNC_USER}/.vnc \
-    && echo -n "${VNC_PASS}" | vncpasswd -f > /home/${VNC_USER}/.vnc/passwd \
-    && chmod 600 /home/${VNC_USER}/.vnc/passwd
-
 # Konfigurasi xstartup dan mematikan screensaver agar layar tidak terkunci otomatis
-RUN echo '#!/bin/bash\n\
+RUN mkdir -p /home/${VNC_USER}/.vnc \
+    && echo '#!/bin/bash\n\
 unset SESSION_MANAGER\n\
 unset DBUS_SESSION_BUS_ADDRESS\n\
 xset s off\n\
@@ -39,9 +35,12 @@ xset s noblank\n\
 exec startxfce4\n\
 ' > /home/${VNC_USER}/.vnc/xstartup && chmod +x /home/${VNC_USER}/.vnc/xstartup
 
-# Script untuk menjalankan VNC, noVNC, dan websockify
+# Script untuk generate password VNC, membersihkan lock, dan menjalankan server
 RUN echo '#!/bin/bash\n\
 export PORT=${PORT:-8080}\n\
+mkdir -p /home/developer/.vnc\n\
+echo -n "${VNC_PASS}" | vncpasswd -f > /home/developer/.vnc/passwd\n\
+chmod 600 /home/developer/.vnc/passwd\n\
 vncserver -kill :1 >/dev/null 2>&1 || true\n\
 sudo rm -rf /tmp/.X* /tmp/.X11-unix\n\
 sudo mkdir -p /tmp/.X11-unix\n\
