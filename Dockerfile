@@ -40,9 +40,14 @@ xset s noblank\n\
 exec startxfce4\n\
 ' > /home/${VNC_USER}/.vnc/xstartup && chmod +x /home/${VNC_USER}/.vnc/xstartup
 
-# Script inisialisasi password, pembersihan lock, dan menjalankan VNC/noVNC
+# Membuat direktori token untuk mapping port aman websockify
+RUN mkdir -p /home/${VNC_USER}/novnc_tokens \
+    && echo "aps: localhost:5901" > /home/${VNC_USER}/novnc_tokens/vnc
+
+# Script inisialisasi dinamis yang membaca port Railway secara mutlak
 RUN echo '#!/bin/bash\n\
-SERVER_PORT="${PORT:-8080}"\n\
+# Menggunakan port dinamis yang diberikan oleh Railway secara mutlak\n\
+TARGET_PORT="${PORT:-8080}"\n\
 \n\
 mkdir -p /home/developer/.vnc\n\
 echo -n "${VNC_PASS}" | vncpasswd -f > /home/developer/.vnc/passwd\n\
@@ -56,8 +61,8 @@ sudo chmod 1777 /tmp/.X11-unix\n\
 vncserver :1 -geometry 1280x720 -depth 24 -localhost no\n\
 sleep 2\n\
 \n\
-echo "Starting websockify on port ${SERVER_PORT}..."\n\
-exec websockify --web=/usr/share/novnc/ 0.0.0.0:${SERVER_PORT} localhost:5901\n\
+echo "Starting websockify on dynamic port ${TARGET_PORT} with token routing..."\n\
+exec websockify --web=/usr/share/novnc/ --target-config=/home/developer/novnc_tokens/ 0.0.0.0:${TARGET_PORT}\n\
 ' > /home/${VNC_USER}/start.sh && chmod +x /home/${VNC_USER}/start.sh
 
 CMD ["/home/developer/start.sh"]
