@@ -3,7 +3,7 @@ FROM ubuntu:22.04
 # Hindari interaktif prompt saat instalasi
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Update dan install dependencies
+# Update dan install dependencies (termasuk python3 untuk menjalankan script launch noVNC)
 RUN apt-get update && apt-get install -y \
     wget \
     curl \
@@ -11,16 +11,16 @@ RUN apt-get update && apt-get install -y \
     xfce4 \
     xfce4-goodies \
     tightvncserver \
-    websockify \
+    python3 \
+    python3-numpy \
     dbus-x11 \
-    supervisor \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Buat direktori kerja
 WORKDIR /app
 
-# Download noVNC versi terbaru langsung dari GitHub
+# Download noVNC resmi dari GitHub
 RUN git clone https://github.com/novnc/noVNC.git /app/novNC
 
 # Konfigurasi VNC Password dan Resolusi Default
@@ -32,11 +32,11 @@ RUN mkdir -p ~/.vnc \
     && echo "$PASSWORD" | vncpasswd -f > ~/.vnc/passwd \
     && chmod 600 ~/.vnc/passwd
 
-# Buat script startup: Menjalankan VNC server dan websockify dengan root folder ke /app/novNC
+# Buat script startup yang menjalankan VNC server lalu menggunakan script bawaan noVNC (launch.sh)
 RUN echo '#!/bin/bash\n' \
     'rm -rf /tmp/.X*-lock /tmp/.X11-unix/*\n' \
     'vncserver :1 -geometry $RESOLUTION -depth 24\n' \
-    'websockify --web=/app/novNC/ 6901 localhost:5901' > /app/start.sh \
+    '/app/novNC/utils/launch.sh --vnc localhost:5901 --listen 6901' > /app/start.sh \
     && chmod +x /app/start.sh
 
 # Port web noVNC
