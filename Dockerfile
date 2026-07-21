@@ -40,9 +40,9 @@ xset s noblank\n\
 exec startxfce4\n\
 ' > /home/${VNC_USER}/.vnc/xstartup && chmod +x /home/${VNC_USER}/.vnc/xstartup
 
-# Script inisialisasi password, pembersihan lock, dan menjalankan VNC/noVNC
+# Script inisialisasi password, pembersihan lock, dan menjalankan VNC/noVNC menggunakan exec websockify
 RUN echo '#!/bin/bash\n\
-export PORT=${PORT:-8080}\n\
+PORT="${PORT:-8080}"\n\
 mkdir -p /home/developer/.vnc\n\
 echo -n "${VNC_PASS}" | vncpasswd -f > /home/developer/.vnc/passwd\n\
 chmod 600 /home/developer/.vnc/passwd\n\
@@ -52,7 +52,7 @@ sudo mkdir -p /tmp/.X11-unix\n\
 sudo chmod 1777 /tmp/.X11-unix\n\
 vncserver :1 -geometry 1280x720 -depth 24 -localhost no\n\
 sleep 2\n\
-websockify --web=/usr/share/novnc/ 0.0.0.0:${PORT} localhost:5901\n\
+exec websockify --web=/usr/share/novnc/ 0.0.0.0:${PORT} localhost:5901\n\
 ' > /home/${VNC_USER}/start.sh && chmod +x /home/${VNC_USER}/start.sh
 
 CMD ["/home/developer/start.sh"]
