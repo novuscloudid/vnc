@@ -1,9 +1,8 @@
 FROM debian:bookworm-slim
 
-# Hindari interaktif prompt saat instalasi
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install dependencies: XFCE desktop, TigerVNC, noVNC, dan browser pendukung
+# Install komponen desktop XFCE, VNC, dan noVNC
 RUN apt-get update && apt-get install -y \
     xfce4 \
     xfce4-goodies \
@@ -12,26 +11,31 @@ RUN apt-get update && apt-get install -y \
     websockify \
     net-tools \
     curl \
-    nano \
+    procps \
     && rm -rf /var/lib/apt/lists/*
 
-# Set direktori kerja
 WORKDIR /root
 
-# Konfigurasi VNC (Password default: password123, silakan ubah sesuai keinginan)
+# Setup password VNC (ubah "password123" sesuai keinginan Anda)
 RUN mkdir -p ~/.vnc && \
     echo "password123" | vncpasswd -f > ~/.vnc/passwd && \
     chmod 600 ~/.vnc/passwd
 
-# Buat script startup untuk menjalankan VNC dan noVNC secara bersamaan
+# Buat file xstartup agar XFCE berjalan otomatis saat VNC aktif
+RUN mkdir -p ~/.vnc && \
+    echo "#!/bin/bash" > ~/.vnc/xstartup && \
+    echo "xrdb $HOME/.Xresources" >> ~/.vnc/xstartup && \
+    echo "startxfce4 &" >> ~/.vnc/xstartup && \
+    chmod +x ~/.vnc/xstartup
+
+# Script startup untuk menjalankan VNC server & websockify dengan port Railway
 RUN echo '#!/bin/bash\n\
 rm -rf /tmp/.X*-lock /tmp/.X11-unix/*\n\
 vncserver :1 -geometry 1280x720 -depth 24\n\
-websockify --web /usr/share/novnc/ --wrap-mode ignore 0.0.0.0:${PORT:-8080} localhost:5901\n'\
+# Menjalankan websockify agar meneruskan trafik HTTP/WS ke port VNC (5901)\n\
+exec websockify --web /usr/share/novnc/ 0.0.0.0:${PORT:-8080} localhost:5901\n'\
 > /root/start.sh && chmod +x /root/start.sh
 
-# Port bawaan Railway akan membaca variabel $PORT
 EXPOSE 8080
 
-# Jalankan script utama
 CMD ["/root/start.sh"]
