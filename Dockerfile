@@ -1,46 +1,17 @@
-FROM ubuntu:22.04
+FROM --platform=linux/amd64 ubuntu:22.04
 
-# Hindari interaktif prompt saat instalasi
 ENV DEBIAN_FRONTEND=noninteractive
-
-# Update dan install dependencies (termasuk python3 untuk menjalankan script launch noVNC)
-RUN apt-get update && apt-get install -y \
-    wget \
-    curl \
-    git \
-    xfce4 \
-    xfce4-goodies \
-    tightvncserver \
-    python3 \
-    python3-numpy \
-    dbus-x11 \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# Buat direktori kerja
-WORKDIR /app
-
-# Download noVNC resmi dari GitHub
-RUN git clone https://github.com/novnc/noVNC.git /app/novNC
-
-# Konfigurasi VNC Password dan Resolusi Default
-ENV USER=root
-ENV PASSWORD=passwordku
-ENV RESOLUTION=1280x720
-
-RUN mkdir -p ~/.vnc \
-    && echo "$PASSWORD" | vncpasswd -f > ~/.vnc/passwd \
-    && chmod 600 ~/.vnc/passwd
-
-# Buat script startup yang menjalankan VNC server lalu menggunakan script bawaan noVNC (launch.sh)
-RUN echo '#!/bin/bash\n' \
-    'rm -rf /tmp/.X*-lock /tmp/.X11-unix/*\n' \
-    'vncserver :1 -geometry $RESOLUTION -depth 24\n' \
-    '/app/novNC/utils/launch.sh --vnc localhost:5901 --listen 6901' > /app/start.sh \
-    && chmod +x /app/start.sh
-
-# Port web noVNC
-EXPOSE 6901
-
-# Jalankan script utama
-CMD ["/app/start.sh"]
+RUN apt update -y && apt install --no-install-recommends -y xfce4 xfce4-goodies tigervnc-standalone-server novnc websockify sudo xterm init systemd snapd vim net-tools curl wget git tzdata
+RUN apt update -y && apt install -y dbus-x11 x11-utils x11-xserver-utils x11-apps
+RUN apt install software-properties-common -y
+RUN add-apt-repository ppa:mozillateam/ppa -y
+RUN echo 'Package: *' >> /etc/apt/preferences.d/mozilla-firefox
+RUN echo 'Pin: release o=LP-PPA-mozillateam' >> /etc/apt/preferences.d/mozilla-firefox
+RUN echo 'Pin-Priority: 1001' >> /etc/apt/preferences.d/mozilla-firefox
+RUN echo 'Unattended-Upgrade::Allowed-Origins:: "LP-PPA-mozillateam:jammy";' | tee /etc/apt/apt.conf.d/51unattended-upgrades-firefox
+RUN apt update -y && apt install -y firefox
+RUN apt update -y && apt install -y xubuntu-icon-theme
+RUN touch /root/.Xauthority
+EXPOSE 5901
+EXPOSE 6080
+CMD bash -c "vncserver -localhost no -SecurityTypes None -geometry 1024x768 --I-KNOW-THIS-IS-INSECURE && openssl req -new -subj "/C=JP" -x509 -days 365 -nodes -out self.pem -keyout self.pem && websockify -D --web=/usr/share/novnc/ --cert=self.pem 6080 localhost:5901 && tail -f /dev/null"
