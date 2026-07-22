@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     net-tools \
     curl \
     procps \
+    python3 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /root
@@ -25,12 +26,12 @@ RUN echo "#!/bin/bash" > ~/.vnc/xstartup && \
     echo "startxfce4 &" >> ~/.vnc/xstartup && \
     chmod +x ~/.vnc/xstartup
 
-# Script startup menggunakan perintah langsung dari novnc (utils/launch.sh atau websockify dengan target jelas)
+# Script startup: membersihkan lock file lama, jalankan vnc, lalu novnc proxy
 RUN echo '#!/bin/bash\n\
 rm -rf /tmp/.X*-lock /tmp/.X11-unix/*\n\
 vncserver :1 -geometry 1280x720 -depth 24\n\
-# Menjalankan novnc web server yang otomatis membungkus websockify ke port Railway\n\
-exec /usr/share/novnc/utils/novnc_proxy --vnc localhost:5901 --listen ${PORT:-8080}\n'\
+echo "Starting noVNC proxy..."\n\
+exec /usr/share/novnc/utils/novnc_proxy --vnc localhost:5901 --listen 0.0.0.0:${PORT:-8080}\n'\
 > /root/start.sh && chmod +x /root/start.sh
 
 EXPOSE 8080
