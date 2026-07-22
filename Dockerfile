@@ -20,13 +20,17 @@ RUN mkdir -p ~/.vnc && \
     echo "password123" | vncpasswd -f > ~/.vnc/passwd && \
     chmod 600 ~/.vnc/passwd
 
-# Konfigurasi xstartup XFCE
-RUN echo "#!/bin/bash" > ~/.vnc/xstartup && \
-    echo "xrdb $HOME/.Xresources" >> ~/.vnc/xstartup && \
-    echo "startxfce4 &" >> ~/.vnc/xstartup && \
+# Buat file .Xresources kosong agar tidak error "No such file or directory"
+RUN touch ~/.Xresources
+
+# Buat file xstartup yang benar dan stabil untuk XFCE
+RUN echo '#!/bin/bash' > ~/.vnc/xstartup && \
+    echo 'unset SESSION_MANAGER' >> ~/.vnc/xstartup && \
+    echo 'unset DBUS_SESSION_BUS_ADDRESS' >> ~/.vnc/xstartup && \
+    echo 'startxfce4 &' >> ~/.vnc/xstartup && \
     chmod +x ~/.vnc/xstartup
 
-# Script startup dengan penanganan port Railway dinamis
+# Script startup: Menjalankan VNC server dengan penanganan log dan websockify
 RUN echo '#!/bin/bash\n\
 rm -rf /tmp/.X*-lock /tmp/.X11-unix/*\n\
 vncserver :1 -geometry 1280x720 -depth 24\n\
