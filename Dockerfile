@@ -1,8 +1,7 @@
-FROM --platform=linux/amd64 ubuntu:22.04
+FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 1. Gabungkan perintah RUN untuk mengurangi jumlah layer image
 RUN apt update -y && apt install --no-install-recommends -y \
     xfce4 \
     xfce4-goodies \
@@ -32,7 +31,7 @@ RUN apt update -y && apt install --no-install-recommends -y \
 
 RUN touch /root/.Xauthority
 
-# 2. Buat script startup untuk menangani port dinamis Railway
+# Pastikan file entrypoint.sh sudah ada di repo sebelum baris ini dijalankan
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
