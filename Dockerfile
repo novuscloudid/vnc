@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     procps \
     python3 \
+    xauth \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /root
@@ -20,20 +21,16 @@ RUN mkdir -p ~/.vnc && \
     echo "password123" | vncpasswd -f > ~/.vnc/passwd && \
     chmod 600 ~/.vnc/passwd
 
-# Buat file .Xresources kosong agar tidak error "No such file or directory"
-RUN touch ~/.Xresources
-
-# Buat file xstartup yang benar dan stabil untuk XFCE
+# Konfigurasi xstartup yang bersih untuk XFCE
 RUN echo '#!/bin/bash' > ~/.vnc/xstartup && \
-    echo 'unset SESSION_MANAGER' >> ~/.vnc/xstartup && \
-    echo 'unset DBUS_SESSION_BUS_ADDRESS' >> ~/.vnc/xstartup && \
+    echo 'xrdb $HOME/.Xresources' >> ~/.vnc/xstartup && \
     echo 'startxfce4 &' >> ~/.vnc/xstartup && \
     chmod +x ~/.vnc/xstartup
 
-# Script startup: Menjalankan VNC server dengan penanganan log dan websockify
+# Gunakan script startup yang memastikan VNC tidak mati dini
 RUN echo '#!/bin/bash\n\
 rm -rf /tmp/.X*-lock /tmp/.X11-unix/*\n\
-vncserver :1 -geometry 1280x720 -depth 24\n\
+vncserver :1 -geometry 1280x720 -depth 24 -localhost no\n\
 echo "Starting websockify proxy on port ${PORT:-8080}..."\n\
 exec websockify --web /usr/share/novnc/ 0.0.0.0:${PORT:-8080} localhost:5901\n'\
 > /root/start.sh && chmod +x /root/start.sh
