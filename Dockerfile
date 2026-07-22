@@ -1,41 +1,37 @@
-FROM ubuntu:22.04
+FROM debian:bookworm-slim
 
+# Hindari interaktif prompt saat instalasi
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt update -y && apt install --no-install-recommends -y \
+# Install dependencies: XFCE desktop, TigerVNC, noVNC, dan browser pendukung
+RUN apt-get update && apt-get install -y \
     xfce4 \
     xfce4-goodies \
     tigervnc-standalone-server \
     novnc \
     websockify \
-    sudo \
-    xterm \
-    vim \
     net-tools \
     curl \
-    wget \
-    git \
-    tzdata \
-    dbus-x11 \
-    x11-utils \
-    x11-xserver-utils \
-    x11-apps \
-    software-properties-common \
-    xubuntu-icon-theme \
-    && add-apt-repository ppa:mozillateam/ppa -y \
-    && echo 'Package: *' > /etc/apt/preferences.d/mozilla-firefox \
-    && echo 'Pin: release o=LP-PPA-mozillateam' >> /etc/apt/preferences.d/mozilla-firefox \
-    && echo 'Pin-Priority: 1001' >> /etc/apt/preferences.d/mozilla-firefox \
-    && apt update -y && apt install -y firefox \
+    nano \
     && rm -rf /var/lib/apt/lists/*
 
-RUN touch /root/.Xauthority
+# Set direktori kerja
+WORKDIR /root
 
-# Pastikan file entrypoint.sh sudah ada di repo sebelum baris ini dijalankan
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+# Konfigurasi VNC (Password default: password123, silakan ubah sesuai keinginan)
+RUN mkdir -p ~/.vnc && \
+    echo "password123" | vncpasswd -f > ~/.vnc/passwd && \
+    chmod 600 ~/.vnc/passwd
 
-EXPOSE 5901
+# Buat script startup untuk menjalankan VNC dan noVNC secara bersamaan
+RUN echo '#!/bin/bash\n\
+rm -rf /tmp/.X*-lock /tmp/.X11-unix/*\n\
+vncserver :1 -geometry 1280x720 -depth 24\n\
+websockify --web /usr/share/novnc/ --wrap-mode ignore 0.0.0.0:${PORT:-8080} localhost:5901\n'\
+> /root/start.sh && chmod +x /root/start.sh
+
+# Port bawaan Railway akan membaca variabel $PORT
 EXPOSE 8080
 
-CMD ["/entrypoint.sh"]
+# Jalankan script utama
+CMD ["/root/start.sh"]
