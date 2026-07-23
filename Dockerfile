@@ -1,40 +1,40 @@
+# Menggunakan base image Debian Bookworm (versi stabil)
 FROM debian:bookworm-slim
 
+# Mencegah prompt interaktif selama instalasi package
 ENV DEBIAN_FRONTEND=noninteractive
 
+# Update sistem dan install tools esensial serta ttyd (web terminal)
 RUN apt-get update && apt-get install -y \
-    xfce4 \
-    xfce4-goodies \
-    tigervnc-standalone-server \
-    novnc \
-    net-tools \
     curl \
+    wget \
+    git \
+    nano \
+    sudo \
     procps \
-    python3 \
-    xauth \
+    net-tools \
+    openssh-server \
+    ttyd \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /root
+# Konfigurasi SSH Server
+RUN mkdir /var/run/sshd
 
-# Setup password VNC
-RUN mkdir -p ~/.vnc && \
-    echo "password123" | vncpasswd -f > ~/.vnc/passwd && \
-    chmod 600 ~/.vnc/passwd
+# Set password root menjadi "root123" (SILAHKAN GANTI DI BAWAH INI)
+RUN echo 'root:root123' | chpasswd
 
-# Konfigurasi xstartup yang bersih untuk XFCE
-RUN echo '#!/bin/bash' > ~/.vnc/xstartup && \
-    echo 'xrdb $HOME/.Xresources' >> ~/.vnc/xstartup && \
-    echo 'startxfce4 &' >> ~/.vnc/xstartup && \
-    chmod +x ~/.vnc/xstartup
+# Izinkan root login via SSH
+RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+RUN sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
 
-# Gunakan script startup yang memastikan VNC tidak mati dini
-RUN echo '#!/bin/bash\n\
-rm -rf /tmp/.X*-lock /tmp/.X11-unix/*\n\
-vncserver :1 -geometry 1280x720 -depth 24 -localhost no\n\
-echo "Starting websockify proxy on port ${PORT:-8080}..."\n\
-exec websockify --web /usr/share/novnc/ 0.0.0.0:${PORT:-8080} localhost:5901\n'\
-> /root/start.sh && chmod +x /root/start.sh
+# SSH login fix. Otherwise, user is kicked off after login
+RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/profile
 
-EXPOSE 8080
+# Expose port SSH (22) dan port Ttyd (7681)
+EXPOSE 22 7681
 
-CMD ["/root/start.sh"]
+# Buat script startup untuk menjalankan SSH dan Ttyd secara bersamaan
+RUN echo '#!/bin/bash\nservice ssh start\nttyd -p 7681 -i 0.0.0.0 -W bash' > /start.sh && chmod +x /start.sh
+
+# Jalankan script startup saat container menyala
+CMD ["/start.sh"]
